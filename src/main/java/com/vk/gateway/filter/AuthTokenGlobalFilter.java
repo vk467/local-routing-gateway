@@ -2,17 +2,28 @@ package com.vk.gateway.filter;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
+import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.core.Ordered;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferFactory;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.server.reactive.ServerHttpResponse;
+import org.springframework.http.server.reactive.ServerHttpResponseDecorator;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.time.Instant;
+import java.util.Date;
 
 @Component
 public class AuthTokenGlobalFilter implements GlobalFilter, Ordered {
@@ -22,6 +33,7 @@ public class AuthTokenGlobalFilter implements GlobalFilter, Ordered {
     private final String authUrl;
     private final String remoteUser;
     private final String remoteUserHeader;
+    private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
 
     private static String cachedAccessToken = null;
     private static String cachedTokenType = null;
@@ -48,14 +60,48 @@ public class AuthTokenGlobalFilter implements GlobalFilter, Ordered {
                 .flatMap(tokenResponse -> {
                     String bearerToken = tokenResponse.getTokenType() + " " + tokenResponse.getAccessToken();
 
-                    System.out.println("Injected Authorization header");
-                    System.out.println("Injected X-Remote-User header: " + remoteUser);
-                    System.out.println("Forwarding request from: " + exchange.getRequest().getURI());
+                    System.out.println("["+sdf.format(new Date())+"] Injected Authorization header");
+                    System.out.println("["+sdf.format(new Date())+"] Injected X-Remote-User header: " + remoteUser);
+                    System.out.println("["+sdf.format(new Date())+"] Forwarding request from: " + exchange.getRequest().getURI());
+
+                    ServerHttpResponse originalResponse = exchange.getResponse();
+                    DataBufferFactory bufferFactory = originalResponse.bufferFactory();
+
+                    ServerHttpResponseDecorator decoratedResponse = new ServerHttpResponseDecorator(originalResponse) {
+                        @Override
+                        public Mono<Void> writeWith(org.reactivestreams.Publisher<? extends DataBuffer> body) {
+                            URI downstreamUrl = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_REQUEST_URL_ATTR);
+
+                            if (body instanceof Flux) {
+                                Flux<? extends DataBuffer> fluxBody = (Flux<? extends DataBuffer>) body;
+
+                                return super.writeWith(
+                                        fluxBody.map(dataBuffer -> {
+                                            byte[] content = new byte[dataBuffer.readableByteCount()];
+                                            dataBuffer.read(content);
+                                            DataBufferUtils.release(dataBuffer);
+
+                                            String responseBody = new String(content, StandardCharsets.UTF_8);
+                                            int statusCode = getStatusCode() != null ? getStatusCode().value() : 0;
+
+                                            System.out.println("["+sdf.format(new Date())+"] Response Status Code: " + statusCode + "; Downstream URL:" + downstreamUrl);
+//                                            System.out.println("["+sdf.format(new Date())+"] Response Body: " + responseBody);
+
+                                            return bufferFactory.wrap(content);
+                                        })
+                                );
+                            }
+                            return super.writeWith(body);
+                        }
+                    };
+
 
                     ServerWebExchange mutatedExchange = exchange.mutate()
                             .request(builder -> builder
                                     .header(HttpHeaders.AUTHORIZATION, bearerToken)
-                                    .header(remoteUserHeader, remoteUser))
+                                    .header(remoteUserHeader, remoteUser)
+                            )
+                            .response(decoratedResponse)
                             .build();
 
                     return chain.filter(mutatedExchange);
