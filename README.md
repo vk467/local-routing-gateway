@@ -1,7 +1,7 @@
 # local-routing-gateway
 A Spring Cloud Gateway project for ease Web app development in local
 
-## How to use Local Routing gateway with one local project
+# How to use Local Routing gateway with one local project
 1. Clone the project.
 2. Update the application.properties with appropriate values of server auth credentials and details.
 3. Then Update the first routing config(routeId=local) with locally running service's contextPath.
@@ -12,7 +12,7 @@ A Spring Cloud Gateway project for ease Web app development in local
 ***Note:*** For UI local projects, remoteUser will be passed from *application.properties*. For Backend local projects, comment the remoteUserHeader passage in *AuthTokenGlobalFilter.java* so that remoteUser passed from client code will be used.
 
 
-# Configure Gateway to Route Multiple local projects
+## Configure Gateway to Route Multiple local projects
 Update the *application.properties* as below to use two local projects(local-service-1 and local-service-2) in Gateway.
 ```
 spring.cloud.gateway.routes[0].id=local
