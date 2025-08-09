@@ -31,4 +31,5 @@ spring.cloud.gateway.routes[2].predicates[0]=Path=/**
 1. Update the localhost port numbers accordingly in **uri** property.
 2. Replace the placeholders <<local-service-#>> with the appropriate context paths for each local project in **predicates[0]=Path** property.
 3. In above way, you can route multiple local projects through gateway.
+
 ***Note: Server route should be at the end. Local routes should be added prior to the server route.***
