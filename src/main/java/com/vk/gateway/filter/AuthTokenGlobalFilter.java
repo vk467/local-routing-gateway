@@ -99,7 +99,7 @@ public class AuthTokenGlobalFilter implements GlobalFilter, Ordered {
                     ServerWebExchange mutatedExchange = exchange.mutate()
                             .request(builder -> builder
                                     .header(HttpHeaders.AUTHORIZATION, bearerToken)
-                                    .header(remoteUserHeader, remoteUser)
+                                    .header(remoteUserHeader, remoteUser)  // comment this line if your local running project is backend so that remoteUser Header will be passed from the backend project
                             )
                             .response(decoratedResponse)
                             .build();
