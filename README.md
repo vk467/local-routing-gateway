@@ -8,3 +8,5 @@ A Spring Cloud Gateway project for ease Web app development in local
 4. In second routing config, just update the server's hostname.
 5. Then build and run the project.
 6. Now, use http://localhost:8764 in base url to route the api calls through this local-routing-gateway.
+
+Note: For UI local projects, remoteUser will be passed from application.properties. For Backend local projects, comment the remoteUserHeader passage in AuthTokenGlobalFilter.java so that remoteUser passed from client code will be used.
